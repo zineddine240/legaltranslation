@@ -5,10 +5,8 @@ import pdf from "pdf-parse";
 
 import { validPrefixes } from "@/lib/constants";
 
-
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
-
 
 const RequestSchema = z.object({
   fromLanguage: z.string(),
@@ -39,7 +37,7 @@ export async function POST(req: Request) {
   const matchedPrefix = validPrefixes.find((prefix) =>
     document.startsWith(prefix)
   );
-  
+
   if (!matchedPrefix) {
     return Response.json(
       {
@@ -51,15 +49,13 @@ export async function POST(req: Request) {
   }
 
   const base64Data = document.slice(matchedPrefix.length);
-
   const pdfBuffer = Buffer.from(base64Data, "base64");
-
   let textToTranslate = "";
 
   try {
     const data = await pdf(pdfBuffer);
     textToTranslate = data.text;
-  } catch (error) {    
+  } catch (error) {
     return Response.json(
       {
         success: false,
@@ -78,10 +74,11 @@ export async function POST(req: Request) {
   const model = openai("gpt-4o");
 
   try {
+    // --- CORRECTION ICI : On a remis la fonction streamText ---
     const result = await streamText({
-      model,
+      model: model as any, // Le correctif pour l'erreur TypeScript
       system: `Translate the following text from ${fromLanguage} to ${toLanguage}. If "Auto" is the from language, then try to detect the original language automatically after reading the text. Return directly the translated text. Do not include the prompt in the response.`,
-      prompt: textToTranslate.toString(),
+      prompt: textToTranslate,
       temperature: 0.7,
     });
 
@@ -90,7 +87,7 @@ export async function POST(req: Request) {
     return Response.json(
       {
         success: false,
-        message: "You need to provide your API Key",
+        message: "You need to provide your API Key or the service failed",
       },
       { status: 401 }
     );
